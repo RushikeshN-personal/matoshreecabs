@@ -1,4 +1,9 @@
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4001/api";
+// Client: same-origin path (next.config rewrites proxy to the backend).
+// Server (RSC): absolute backend URL — server-to-server has no CORS.
+const API =
+  typeof window === "undefined"
+    ? `${process.env.BACKEND_ORIGIN ?? "http://localhost:4001"}/api`
+    : "/api";
 
 export interface ApiReview {
   id: string;
