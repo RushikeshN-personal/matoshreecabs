@@ -1,0 +1,353 @@
+// Matoshree Cabs — data model (PRD §9). Owned by the Identity service for V1;
+// split per-service later if the microservices get their own databases.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Falls back to DATABASE_URL locally; in production set DIRECT_URL to the
+  // non-pooled Neon connection string so migrations run against a direct
+  // connection while the app uses the pooled one.
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------- enums ----------------
+enum Role {
+  CUSTOMER
+  DRIVER
+  ADMIN
+  DEVELOPER
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum DriverAvailability {
+  AVAILABLE
+  OFF_DUTY
+}
+
+enum BookingMode {
+  PICK_DROP
+  OUTSTATION
+  LOCAL
+  RENTAL
+}
+
+enum TripType {
+  ONE_WAY
+  ROUND_TRIP
+}
+
+enum BookingStatus {
+  REQUESTED
+  DRIVER_ASSIGNED
+  CONFIRMED
+  ONGOING
+  COMPLETED
+  CLOSED
+  NEEDS_REASSIGNMENT
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+}
+
+enum DiscountType {
+  PERCENT
+  FLAT
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+}
+
+// ---------------- identity ----------------
+model User {
+  id           String     @id @default(cuid())
+  role         Role       @default(CUSTOMER)
+  name         String
+  email        String     @unique
+  mobile       String
+  passwordHash String?
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+
+  customerProfile CustomerProfile?
+  driverProfile   DriverProfile?
+  bookings        Booking[]        @relation("CustomerBookings")
+  reviews         Review[]
+}
+
+model OtpToken {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+model CustomerProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+  savedAddresses String[] @default([])
+  defaultCabId   String?
+}
+
+model DriverProfile {
+  id             String             @id @default(cuid())
+  userId         String             @unique
+  user           User               @relation(fields: [userId], references: [id])
+  licenceNo      String
+  location       String?
+  languages      String[]           @default([])
+  experienceYrs  Int                @default(0)
+  rating         Float              @default(0)
+  availability   DriverAvailability @default(AVAILABLE)
+  status         UserStatus         @default(ACTIVE)
+  assignedCabId  String?
+
+  bookings Booking[]
+}
+
+// ---------------- catalogue ----------------
+model Vehicle {
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  seating     Int
+  luggage     Int        @default(0)
+  ac          Boolean    @default(true)
+  fuelType    String
+  features    String[]   @default([])
+  images      String[]   @default([])
+  status      UserStatus @default(ACTIVE)
+
+  rateCards  RateCard[]
+  routeFares RouteFare[]
+  bookings   Booking[]
+}
+
+model RateCard {
+  id             String      @id @default(cuid())
+  vehicleId      String
+  vehicle        Vehicle     @relation(fields: [vehicleId], references: [id])
+  mode           BookingMode
+  // Km included in baseRate before extraKmRate kicks in — e.g. "300km ₹4000"
+  // on an outstation package. Shown on the public price catalog.
+  packageKm      Int         @default(300)
+  baseRate       Decimal     @db.Decimal(10, 2)
+  extraKmRate    Decimal     @default(0) @db.Decimal(10, 2)
+  extraHrRate    Decimal     @default(0) @db.Decimal(10, 2)
+  driverAllowance Decimal    @default(0) @db.Decimal(10, 2)
+  nightCharge    Decimal     @default(0) @db.Decimal(10, 2)
+  version        Int         @default(1)
+  updatedBy      String?
+  updatedAt      DateTime    @updatedAt
+
+  @@unique([vehicleId, mode])
+}
+
+// Route-specific fixed fares — e.g. "Pune -> Mumbai in a Sedan = ₹2500 +
+// toll + GST". This is what actually drives the fare shown/charged for
+// PICK_DROP/OUTSTATION/LOCAL bookings; RateCard above stays as the general
+// "starting from" reference shown on a cab's page. If no RouteFare row
+// matches a requested trip, booking falls back to a WhatsApp quote instead
+// of guessing a number.
+model RouteFare {
+  id         String      @id @default(cuid())
+  vehicleId  String
+  vehicle    Vehicle     @relation(fields: [vehicleId], references: [id])
+  mode       BookingMode
+  // City names (not full "City, State, Country" labels) — e.g. "Pune",
+  // "Mumbai". For LOCAL, fromCity == toCity (the whole trip stays in-city).
+  fromCity   String
+  toCity     String
+  baseFare   Decimal     @db.Decimal(10, 2)
+  tollCharge Decimal     @default(0) @db.Decimal(10, 2)
+  gstPercent Decimal     @default(0) @db.Decimal(5, 2)
+  active     Boolean     @default(true)
+  updatedBy  String?
+  updatedAt  DateTime    @updatedAt
+
+  @@unique([vehicleId, mode, fromCity, toCity])
+  @@index([mode, fromCity, toCity])
+}
+
+// ---------------- booking & money ----------------
+// Payment model: no advance/QR — the customer pays the driver directly
+// (cash or UPI-to-driver) at trip completion. `Payment` is just the record
+// of what was collected, for reporting/reconciliation, not a gate on status.
+model Booking {
+  id             String        @id @default(cuid())
+  ref            String        @unique
+  // Login is not required to book — customerId is set when the requester is
+  // logged in; guestName/guestMobile carry the rider's contact otherwise.
+  customerId     String?
+  customer       User?         @relation("CustomerBookings", fields: [customerId], references: [id])
+  guestName      String?
+  guestMobile    String?
+  guestEmail     String?
+  mode           BookingMode
+  pickup         String        @default("Pune")
+  destination    String?
+  tripType       TripType?
+  dateTime       DateTime
+  returnDateTime DateTime?
+  vehicleId      String?
+  vehicle        Vehicle?      @relation(fields: [vehicleId], references: [id])
+  driverId       String?
+  driver         DriverProfile? @relation(fields: [driverId], references: [id])
+  passengers     Int           @default(1)
+  // Optional trip details — none required to book.
+  gstNumber      String?
+  flightNumber   String?
+  trainNumber    String?
+  fareBreakdown  Json?
+  total          Decimal       @default(0) @db.Decimal(10, 2)
+  status         BookingStatus @default(REQUESTED)
+  cancelReason   String?
+  cancelledBy    Role?
+  createdAt      DateTime      @default(now())
+
+  @@index([guestMobile])
+
+  payment Payment?
+  review  Review?
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  bookingId   String        @unique
+  booking     Booking       @relation(fields: [bookingId], references: [id])
+  amount      Decimal       @db.Decimal(10, 2)
+  method      PaymentMethod @default(CASH)
+  recordedBy  String?
+  createdAt   DateTime      @default(now())
+}
+
+// ---------------- marketing & content ----------------
+model Offer {
+  id           String       @id @default(cuid())
+  title        String
+  description  String?
+  code         String?      @unique
+  discountType DiscountType @default(PERCENT)
+  value        Decimal      @default(0) @db.Decimal(10, 2)
+  validFrom    DateTime?
+  validTo      DateTime?
+  active       Boolean      @default(true)
+}
+
+model PopularTrip {
+  id            String  @id @default(cuid())
+  destination   String
+  image         String?
+  pois          String[] @default([])
+  distanceKm    Int      @default(0)
+  indicativeFare Decimal @default(0) @db.Decimal(10, 2)
+  active        Boolean  @default(true)
+}
+
+model Review {
+  id         String       @id @default(cuid())
+  customerId String
+  customer   User         @relation(fields: [customerId], references: [id])
+  bookingId  String       @unique
+  booking    Booking      @relation(fields: [bookingId], references: [id])
+  rating     Int
+  text       String?
+  status     ReviewStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+}
+
+model Content {
+  key       String   @id
+  body      String?
+  media     String?
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------- access control & audit ----------------
+model RolePermission {
+  role       Role
+  capability String
+  allowed    Boolean @default(false)
+
+  @@id([role, capability])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actor     String?
+  action    String
+  entity    String
+  before    Json?
+  after     Json?
+  timestamp DateTime @default(now())
+}
+
+enum EnquiryStatus {
+  NEW
+  READ
+  RESOLVED
+}
+
+model ContactEnquiry {
+  id        String        @id @default(cuid())
+  name      String
+  mobile    String
+  email     String?
+  subject   String
+  message   String
+  status    EnquiryStatus @default(NEW)
+  createdAt DateTime      @default(now())
+
+  @@index([status])
+}
+
+enum DriverApplicationStatus {
+  NEW
+  REVIEWING
+  APPROVED
+  REJECTED
+}
+
+// A public "apply to drive" submission — reviewed by Admin/Developer, who
+// then create the real driver account (Admin > Drivers > Add driver) once
+// documents are verified in person/on a call. ID numbers (Aadhaar/PAN etc.)
+// are deliberately not collected here — only inside a verified KYC flow.
+model DriverApplication {
+  id             String                   @id @default(cuid())
+  name           String
+  mobile         String
+  email          String?
+  city           String
+  licenceNo      String
+  licenceExpiry  DateTime?
+  experienceYrs  Int                      @default(0)
+  ownsVehicle    Boolean                  @default(false)
+  vehicleType    String?
+  vehicleNumber  String?
+  preferredTrips String?
+  notes          String?
+  status         DriverApplicationStatus  @default(NEW)
+  // Set once Approve creates the real driver account, so re-approving is a no-op.
+  createdDriverUserId String?
+  createdAt      DateTime                 @default(now())
+
+  @@index([status])
+}

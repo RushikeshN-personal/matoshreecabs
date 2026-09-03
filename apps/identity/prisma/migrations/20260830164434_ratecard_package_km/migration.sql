@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "RateCard" ADD COLUMN     "packageKm" INTEGER NOT NULL DEFAULT 300;
+

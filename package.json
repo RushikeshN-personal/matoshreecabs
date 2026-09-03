@@ -1,0 +1,18 @@
+{
+  "name": "matoshreecabs/backend",
+  "private": true,
+  "packageManager": "pnpm@10.34.5",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "db:generate": "pnpm --filter @matoshreecabs/identity exec prisma generate",
+    "db:migrate": "pnpm --filter @matoshreecabs/identity exec prisma migrate dev",
+    "db:seed": "pnpm --filter @matoshreecabs/identity exec ts-node prisma/seed.ts"
+  },
+  "devDependencies": {
+    "dotenv-cli": "^11.0.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.0"
+  }
+}
