@@ -14,9 +14,33 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.matoshreecabs.com";
+
 export const metadata: Metadata = {
-  title: "Matoshree Cabs — Cabs from Pune",
-  description: "Book cabs from Pune for local, outstation, airport, and rental trips.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "Matoshree Cabs — Cabs from Pune for Outstation, Airport & Local Trips",
+    template: "%s | Matoshree Cabs",
+  },
+  description:
+    "Book cabs from Pune for local, outstation, airport, and rental trips. Clean cars, fixed fares, and reliable drivers — Pune to Mumbai, Nashik, Nagpur and more.",
+  keywords: [
+    "Matoshree Cabs",
+    "cabs from Pune",
+    "Pune to Mumbai cab",
+    "Pune airport taxi",
+    "outstation cab Pune",
+  ],
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: "Matoshree Cabs",
+    url: SITE_URL,
+    title: "Matoshree Cabs — Cabs from Pune",
+    description:
+      "Book cabs from Pune for local, outstation, airport, and rental trips.",
+  },
   verification: {
     google: "rr2ywrz9-4g8MHPWFCY9_WPrV3PRktd0myn-bFMLNmo",
   },

@@ -4,7 +4,7 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
-      "env": ["NODE_ENV", "BACKEND_ORIGIN", "NEXT_PUBLIC_API_URL"]
+      "env": ["NODE_ENV", "BACKEND_ORIGIN", "NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_SITE_URL"]
     },
     "dev": { "cache": false, "persistent": true, "dependsOn": ["^build"] },
     "lint": {}
