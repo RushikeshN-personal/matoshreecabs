@@ -17,6 +17,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Matoshree Cabs — Cabs from Pune",
   description: "Book cabs from Pune for local, outstation, airport, and rental trips.",
+  verification: {
+    google: "rr2ywrz9-4g8MHPWFCY9_WPrV3PRktdOmyn-bFMLNmo",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
