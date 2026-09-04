@@ -189,8 +189,12 @@ export function BookingForm() {
     e.preventDefault();
     setError(null);
 
-    if (!riderName.trim() || !/^[6-9]\d{9}$/.test(riderMobile.trim())) {
-      setError("Please enter your name and a valid 10-digit mobile number.");
+    if (riderName.trim().length < 2) {
+      setError("Please enter your full name.");
+      return;
+    }
+    if (!/^[6-9]\d{9}$/.test(riderMobile.trim())) {
+      setError("Please enter your mobile number.");
       return;
     }
     if (riderEmail.trim() && !EMAIL_REGEX.test(riderEmail.trim())) {
@@ -565,14 +569,19 @@ export function BookingForm() {
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-500">Mobile number</label>
-            <input
-              value={riderMobile}
-              onChange={(e) => setRiderMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
-              placeholder="10-digit mobile"
-              inputMode="numeric"
-              required
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-500"
-            />
+            <div className="flex items-stretch overflow-hidden rounded-lg border border-gray-200 focus-within:border-orange-500">
+              <span className="flex items-center border-r border-gray-200 bg-gray-50 px-3 text-sm font-medium text-gray-600">
+                +91
+              </span>
+              <input
+                value={riderMobile}
+                onChange={(e) => setRiderMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                placeholder="10-digit mobile"
+                inputMode="numeric"
+                required
+                className="w-full px-3 py-2 text-sm text-gray-900 outline-none"
+              />
+            </div>
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-500">
