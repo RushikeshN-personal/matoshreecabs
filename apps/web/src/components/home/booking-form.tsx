@@ -465,16 +465,39 @@ export function BookingForm() {
             </div>
           )}
 
-          <div className="w-32">
+          <div className="w-36">
             <label className="mb-1 block text-xs font-medium text-gray-500">Passengers</label>
-            <input
-              type="number"
-              min={1}
-              max={50}
-              value={passengers}
-              onChange={(e) => setPassengers(Math.max(1, Number(e.target.value) || 1))}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-500"
-            />
+            <div className="flex items-stretch overflow-hidden rounded-lg border border-gray-200 focus-within:border-orange-500">
+              <button
+                type="button"
+                aria-label="Decrease passengers"
+                onClick={() => setPassengers((n) => Math.max(1, n - 1))}
+                disabled={passengers <= 1}
+                className="flex w-9 items-center justify-center text-lg font-bold text-orange-600 transition-colors hover:bg-orange-50 disabled:cursor-not-allowed disabled:text-gray-300"
+              >
+                −
+              </button>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={50}
+                value={passengers}
+                onChange={(e) =>
+                  setPassengers(Math.min(50, Math.max(1, Number(e.target.value) || 1)))
+                }
+                className="w-full [appearance:textfield] border-x border-gray-200 py-2 text-center text-sm text-gray-900 outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              />
+              <button
+                type="button"
+                aria-label="Increase passengers"
+                onClick={() => setPassengers((n) => Math.min(50, n + 1))}
+                disabled={passengers >= 50}
+                className="flex w-9 items-center justify-center text-lg font-bold text-orange-600 transition-colors hover:bg-orange-50 disabled:cursor-not-allowed disabled:text-gray-300"
+              >
+                +
+              </button>
+            </div>
           </div>
 
           {/* Cab selector */}
