@@ -46,15 +46,15 @@ async function seedRbac(): Promise<void> {
 }
 
 async function seedDeveloper(): Promise<void> {
-  const email = 'amolman303@gmail.com';
+  const email = 'amolmane303@gmail.com';
   const passwordHash = await bcrypt.hash('Mane@321', 10);
   await prisma.user.upsert({
     where: { email },
     update: { passwordHash },
     create: {
-      name: 'Rushi Nikam',
+      name: 'Amol Mane',
       email,
-      mobile: '9000000000',
+      mobile: '9503082953',
       role: Role.DEVELOPER,
       passwordHash,
     },
