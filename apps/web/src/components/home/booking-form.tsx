@@ -239,31 +239,27 @@ export function BookingForm() {
   if (booking) {
     const farePending = Number(booking.total) <= 0;
     const bookingDate = new Date(booking.dateTime);
-    const dateStr = bookingDate.toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    const dateStr = bookingDate.toISOString().slice(0, 10);
     const timeStr = bookingDate.toLocaleTimeString("en-IN", {
       hour: "2-digit",
       minute: "2-digit",
+      hour12: false,
     });
     const confirmMessage = [
-      "*NEW BOOKING – MATOSHREE CABS*",
-      `📌 Ref: ${booking.ref}`,
+      `🚕 *NEW BOOKING – ${SITE.name.toUpperCase()}*`,
       `📍 Pickup: ${booking.pickup}`,
       `📍 Destination: ${booking.destination ?? "—"}`,
       `📅 Date: ${dateStr}`,
       `🕐 Time: ${timeStr}`,
-      `👤 Passengers: ${booking.passengers}`,
+      `👤 Passengers: ${booking.passengers} ${booking.passengers === 1 ? "Passenger" : "Passengers"}`,
       `🚗 Car: ${booking.vehicle?.name ?? "—"}`,
-      ...(booking.flightNumber ? [`✈️ Flight No: ${booking.flightNumber}`] : []),
+      `✈️ Flight No: ${booking.flightNumber || "Not provided"}`,
       "",
       farePending
         ? "Please confirm availability and fare."
         : `Estimated fare: ₹${booking.total}. Please confirm.`,
       "",
-      "Matoshree Cabs",
+      `*${SITE.name}*`,
       "Premium cab service",
     ].join("\n");
     const confirmHref = `https://wa.me/${SITE.whatsapp}?text=${encodeURIComponent(confirmMessage)}`;
